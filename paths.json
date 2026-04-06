@@ -1,10 +1,10 @@
 {
   "mappings": [
-    "/content/Gazal-ue-site/:/",
-    "/content/Gazal-ue-site/configuration:/.helix/config.json",
-    "/content/Gazal-ue-site/metadata:/metadata.json"
+    "/content/newdmsite/:/",
+    "/content/newdmsite/configuration:/.helix/config.json",
+    "/content/newdmsite/metadata:/metadata.json"
   ],
   "includes": [
-    "/content/Gazal-ue-site/"
+    "/content/newdmsite/"
   ]
 }
