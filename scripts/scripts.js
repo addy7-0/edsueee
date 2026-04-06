@@ -1,7 +1,6 @@
 import {
   loadHeader,
   loadFooter,
-  decorateButtons,
   decorateIcons,
   decorateSections,
   decorateBlocks,
@@ -12,8 +11,140 @@ import {
   loadCSS,
 } from './aem.js';
 
+/** AEM content root for path helpers; align with paths.json mappings. */
+const CONTENT_ROOT_PATH = '/content/newdmsite';
+
 /**
- * Moves all the attributes from a given elmenet to another given element.
+ * Helper function that converts an AEM path into an EDS path.
+ */
+export function getEDSLink(aemPath) {
+  if (!aemPath) {
+    return '';
+  }
+
+  let aemRoot = CONTENT_ROOT_PATH;
+
+  if (window.hlx && window.hlx.aemRoot) {
+    aemRoot = window.hlx.aemRoot;
+  }
+
+  return aemPath.replace(aemRoot, '').replace('.html', '');
+}
+
+/**
+ * Gets path details from the current URL
+ * @returns {object} Object containing path details
+ */
+export function getPathDetails() {
+  const { pathname } = window.location;
+  const extParts = pathname.split('.');
+  const ext = extParts.length > 1 ? extParts[extParts.length - 1] : '';
+  const isContentPath = pathname.startsWith('/content');
+  const parts = pathname.split('/').filter(Boolean);
+
+  const safeLangGet = (index) => {
+    const val = parts[index];
+    return val ? val.split('.')[0].toLowerCase() : '';
+  };
+
+  let langRegion = 'en-au';
+  const ISO_2_LETTER = /^[a-z]{2}$/;
+
+  if (window.hlx && window.hlx.isExternalSite === true) {
+    const hlxLangRegion = window.hlx.langregion?.toLowerCase();
+    if (hlxLangRegion) {
+      langRegion = hlxLangRegion;
+    } else if (parts.length >= 2) {
+      const region = isContentPath ? safeLangGet(2) : safeLangGet(0);
+      let language = isContentPath ? safeLangGet(3) : safeLangGet(1);
+      [language] = language.split('_');
+      if (ISO_2_LETTER.test(language) && ISO_2_LETTER.test(region)) {
+        langRegion = `${language}-${region}`;
+      }
+    }
+  } else {
+    const extractedLangRegion = isContentPath ? safeLangGet(2) : safeLangGet(0);
+
+    if (extractedLangRegion && extractedLangRegion.includes('-')) {
+      const [extractedLang, extractedRegion] = extractedLangRegion.split('-');
+      if (ISO_2_LETTER.test(extractedLang) && ISO_2_LETTER.test(extractedRegion)) {
+        langRegion = extractedLangRegion;
+      }
+    }
+  }
+
+  let [lang, region] = langRegion.split('-');
+  const isLanguageMasters = langRegion === 'language-masters';
+
+  if (!lang || lang === '' || lang === 'language') lang = 'en';
+  if (!region || region === '' || region === 'masters') region = 'au';
+  if (isLanguageMasters) {
+    langRegion = 'en-au';
+    lang = 'en';
+    region = 'au';
+  }
+
+  const prefix = pathname.substring(0, pathname.indexOf(`/${langRegion}`)) || '';
+  const suffix = pathname.substring(pathname.indexOf(`/${langRegion}`) + langRegion.length + 1) || '';
+
+  return {
+    ext,
+    prefix,
+    suffix,
+    langRegion,
+    lang,
+    region,
+    isContentPath,
+    isLanguageMasters,
+  };
+}
+
+/**
+ * Fetches language placeholders
+ * @param {string} langRegion - Language region code
+ * @returns {object} Placeholders object
+ */
+export async function fetchLanguagePlaceholders(langRegion) {
+  const langCode = langRegion || getPathDetails()?.langRegion || 'en-au';
+  try {
+    const resp = await fetch(`/${langCode}/placeholders.json`);
+    if (resp.ok) {
+      const json = await resp.json();
+      return json.data?.reduce((acc, item) => {
+        acc[item.key] = item.value;
+        return acc;
+      }, {}) || {};
+    }
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error(`Error fetching placeholders for lang: ${langCode}`, error);
+    try {
+      const resp = await fetch('/en-au/placeholders.json');
+      if (resp.ok) {
+        const json = await resp.json();
+        return json.data?.reduce((acc, item) => {
+          acc[item.key] = item.value;
+          return acc;
+        }, {}) || {};
+      }
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('Error fetching placeholders:', err);
+    }
+  }
+  return {};
+}
+
+/**
+ * Optional token dictionary for legacy utils; set `window.tokenisedPlaceholders` if needed.
+ * @returns {object|null}
+ */
+export function getTokenisedPlaceholders() {
+  return window.tokenisedPlaceholders || null;
+}
+
+/**
+ * Moves all the attributes from a given element to another given element.
  * @param {Element} from the element to copy attributes from
  * @param {Element} to the element to copy attributes to
  */
@@ -28,6 +159,13 @@ export function moveAttributes(from, to, attributes) {
       to?.setAttribute(attr, value);
       from.removeAttribute(attr);
     }
+  });
+}
+
+export function decorateImages(main) {
+  main.querySelectorAll('p img').forEach((img) => {
+    const p = img.closest('p');
+    p.className = 'img-wrapper';
   });
 }
 
@@ -77,9 +215,8 @@ function buildAutoBlocks() {
  */
 // eslint-disable-next-line import/prefer-default-export
 export function decorateMain(main) {
-  // hopefully forward compatible button decoration
-  decorateButtons(main);
   decorateIcons(main);
+  decorateImages(main);
   buildAutoBlocks(main);
   decorateSections(main);
   decorateBlocks(main);
@@ -100,7 +237,6 @@ async function loadEager(doc) {
   }
 
   try {
-    /* if desktop (proxy for fast connection) or fonts already loaded, load fonts.css */
     if (window.innerWidth >= 900 || sessionStorage.getItem('fonts-loaded')) {
       loadFonts();
     }
@@ -136,7 +272,6 @@ async function loadLazy(doc) {
 function loadDelayed() {
   // eslint-disable-next-line import/no-cycle
   window.setTimeout(() => import('./delayed.js'), 3000);
-  // load anything that can be postponed to the latest here
 }
 
 async function loadPage() {

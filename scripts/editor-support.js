@@ -1,7 +1,6 @@
 import {
   decorateBlock,
   decorateBlocks,
-  decorateButtons,
   decorateIcons,
   decorateSections,
   loadBlock,
@@ -11,11 +10,7 @@ import {
 import { decorateRichtext } from './editor-support-rte.js';
 import { decorateMain } from './scripts.js';
 
-let promiseChanges$ = Promise.resolve();
-
 async function applyChanges(event) {
-  await promiseChanges$;
-
   // redecorate default content and blocks on patches (in the properties rail)
   const { detail } = event;
 
@@ -38,7 +33,6 @@ async function applyChanges(event) {
   if (element) {
     if (element.matches('main')) {
       const newMain = parsedUpdate.querySelector(`[data-aue-resource="${resource}"]`);
-      if (!newMain) return false;
       newMain.style.display = 'none';
       element.insertAdjacentElement('afterend', newMain);
       decorateMain(newMain);
@@ -47,7 +41,7 @@ async function applyChanges(event) {
       element.remove();
       newMain.style.display = null;
       // eslint-disable-next-line no-use-before-define
-      attachEventListeners(newMain);
+      attachEventListners(newMain);
       return true;
     }
 
@@ -58,7 +52,7 @@ async function applyChanges(event) {
       if (newBlock) {
         newBlock.style.display = 'none';
         block.insertAdjacentElement('afterend', newBlock);
-        decorateButtons(newBlock);
+        // decorateButtons(newBlock); // Commented out - blocks handle their own button styling
         decorateIcons(newBlock);
         decorateBlock(newBlock);
         decorateRichtext(newBlock);
@@ -76,7 +70,7 @@ async function applyChanges(event) {
           const [newSection] = newElements;
           newSection.style.display = 'none';
           element.insertAdjacentElement('afterend', newSection);
-          decorateButtons(newSection);
+          // decorateButtons(newSection); // Commented out - blocks handle their own button styling
           decorateIcons(newSection);
           decorateRichtext(newSection);
           decorateSections(parentElement);
@@ -86,7 +80,7 @@ async function applyChanges(event) {
           newSection.style.display = null;
         } else {
           element.replaceWith(...newElements);
-          decorateButtons(parentElement);
+          // decorateButtons(parentElement); // blocks handle their own button styling
           decorateIcons(parentElement);
           decorateRichtext(parentElement);
         }
@@ -98,7 +92,7 @@ async function applyChanges(event) {
   return false;
 }
 
-function attachEventListeners(main) {
+function attachEventListners(main) {
   [
     'aue:content-patch',
     'aue:content-update',
@@ -108,18 +102,9 @@ function attachEventListeners(main) {
     'aue:content-copy',
   ].forEach((eventType) => main?.addEventListener(eventType, async (event) => {
     event.stopPropagation();
-    promiseChanges$ = applyChanges(event);
-    const applied = await promiseChanges$;
+    const applied = await applyChanges(event);
     if (!applied) window.location.reload();
   }));
 }
 
-attachEventListeners(document.querySelector('main'));
-
-// decorate rich text
-// this has to happen after decorateMain(), and everythime decorateBlocks() is called
-decorateRichtext();
-// in cases where the block decoration is not done in one synchronous iteration we need to listen
-// for new richtext-instrumented elements. this happens for example when using experimentation.
-const observer = new MutationObserver(() => decorateRichtext());
-observer.observe(document, { attributeFilter: ['data-richtext-prop'], subtree: true });
+attachEventListners(document.querySelector('main'));

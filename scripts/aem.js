@@ -270,6 +270,41 @@ async function loadCSS(href) {
   });
 }
 
+// function appendQueryParams(url, params) {
+//   const { searchParams } = url;
+//   params.forEach((value, key) => {
+//     searchParams.set(key, value);
+//   });
+//   url.search = searchParams.toString();
+//   return url.toString();
+// }
+
+// function getUrlExtension(url) {
+//   return url.split(/[#?]/)[0].split('.').pop().trim();
+// }
+
+// /**
+//  * Checks if an element is an external image.
+//  * @param {Element} element The element
+//  * @param {string} externalImageMarker The marker for external images
+//  * @returns {boolean} Whether the element is an external image
+//  * @private
+//  */
+// // eslint-disable-next-line consistent-return
+// function isExternalImage(element, externalImageMarker) {
+//   // if the element is not an anchor, it's not an external image
+//   if (element.tagName !== 'A') return false;
+
+//   // if the element is an anchor with the external image marker as text content,
+//   // it's an external image
+//   if (element.textContent.trim() === externalImageMarker) {
+//     return true;
+//   }
+
+//   const ext = getUrlExtension(element.getAttribute('href'));
+//   return ext && ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext.toLowerCase());
+// }
+
 /**
  * Loads a non module JS file.
  * @param {string} src URL to the JS file
@@ -323,17 +358,20 @@ function createOptimizedPicture(
   eager = false,
   breakpoints = [{ media: '(min-width: 600px)', width: '2000' }, { width: '750' }],
 ) {
-  const url = new URL(src, window.location.href);
+  const url = !src.startsWith('http') ? new URL(src, window.location.href) : new URL(src);
   const picture = document.createElement('picture');
-  const { pathname } = url;
-  const ext = pathname.substring(pathname.lastIndexOf('.') + 1);
+  const { origin, pathname } = url;
+  const ext = pathname.split('.').pop();
 
   // webp
   breakpoints.forEach((br) => {
     const source = document.createElement('source');
     if (br.media) source.setAttribute('media', br.media);
     source.setAttribute('type', 'image/webp');
-    source.setAttribute('srcset', `${pathname}?width=${br.width}&format=webply&optimize=medium`);
+    source.setAttribute(
+      'srcset',
+      `${origin}${pathname}?width=${br.width}&format=webply&optimize=medium`,
+    );
     picture.appendChild(source);
   });
 
@@ -342,14 +380,20 @@ function createOptimizedPicture(
     if (i < breakpoints.length - 1) {
       const source = document.createElement('source');
       if (br.media) source.setAttribute('media', br.media);
-      source.setAttribute('srcset', `${pathname}?width=${br.width}&format=${ext}&optimize=medium`);
+      source.setAttribute(
+        'srcset',
+        `${origin}${pathname}?width=${br.width}&format=${ext}&optimize=medium`,
+      );
       picture.appendChild(source);
     } else {
       const img = document.createElement('img');
       img.setAttribute('loading', eager ? 'eager' : 'lazy');
       img.setAttribute('alt', alt);
       picture.appendChild(img);
-      img.setAttribute('src', `${pathname}?width=${br.width}&format=${ext}&optimize=medium`);
+      img.setAttribute(
+        'src',
+        `${origin}${pathname}?width=${br.width}&format=${ext}&optimize=medium`,
+      );
     }
   });
 
@@ -494,6 +538,15 @@ function decorateIcons(element, prefix = '') {
   });
 }
 
+/*
+  * Decorates external images with a picture element
+  * @param {Element} ele The element
+  * @param {string} deliveryMarker The marker for external images
+  * @private
+  * @example
+  * decorateExternalImages(main, '//External Image//');
+  */
+
 /**
  * Decorates all sections in a container element.
  * @param {Element} main The container element
@@ -620,7 +673,7 @@ function decorateBlock(block) {
     const section = block.closest('.section');
     if (section) section.classList.add(`${shortBlockName}-container`);
     // eslint-disable-next-line no-use-before-define
-    decorateButtons(block);
+    // decorateButtons(block); // Commented out - blocks handle their own button styling
   }
 }
 
@@ -720,6 +773,7 @@ export {
   decorateIcons,
   decorateSections,
   decorateTemplateAndTheme,
+  // decorateExternalImages,
   getMetadata,
   loadBlock,
   loadCSS,

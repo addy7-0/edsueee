@@ -50,7 +50,18 @@
         "hero",
         "cards",
         "columns",
-        "fragment"
+        "fragment",
+        "custom-asset-one",
+        "quote",
+        "icon-and-text-container",
+        "image-and-text-container",
+        "link-list",
+        "logo",
+        "menu",
+        "region-selector",
+        "login",
+        "shopping-cart-widget",
+        "help"
       ]
     }
   ]
