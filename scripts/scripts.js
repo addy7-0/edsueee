@@ -12,7 +12,7 @@ import {
 } from './aem.js';
 
 /** AEM content root for path helpers; align with paths.json mappings. */
-const CONTENT_ROOT_PATH = '/content/newdmsite';
+const CONTENT_ROOT_PATH = '/content/Gazal-ue-site';
 
 /**
  * Helper function that converts an AEM path into an EDS path.
